@@ -3,7 +3,6 @@ from flask_cors import CORS
 from openai import OpenAI
 import os
 import json
-import re
 from datetime import datetime
 
 app = Flask(__name__)
@@ -13,67 +12,8 @@ CORS(app)  # This allows your frontend to communicate with the backend
 api_key = os.getenv("General") if os.getenv("General") else os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
-def load_favorites():
-    if 'favorites' not in st.session_state:
-        st.session_state.favorites = []
-
-def save_recipe(recipe):
-    if recipe not in st.session_state.favorites:
-        recipe['saved_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        st.session_state.favorites.append(recipe)
-        st.success("Recipe saved to favorites!")
-    else:
-        st.warning("This recipe is already in your favorites!")
-
-def display_recipe(recipe_data):
-    recipe = recipe_data['recipe']
-    
-    # Display recipe header
-    st.header(recipe['name'])
-    
-    # Display preparation time and serving size
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"⏱️ Prep Time: {recipe.get('prep_time', 'N/A')}")
-    with col2:
-        st.info(f"👥 Servings: {recipe.get('servings', 'N/A')}")
-    
-    # Display ingredients
-    st.subheader("📝 Ingredients")
-    for ingredient in recipe.get('ingredients', []):
-        st.write(f"• {ingredient['quantity']} {ingredient['name']} ({ingredient['preparation']})")
-    
-    # Display instructions
-    st.subheader("👩‍🍳 Instructions")
-    for i, step in enumerate(recipe.get('steps', []), 1):
-        st.write(f"{i}. {step['description']}")
-    
-    # Display nutritional information
-    if 'nutrition' in recipe:
-        st.subheader("🥗 Nutritional Information (per serving)")
-        nutrition = recipe['nutrition']
-        cols = st.columns(4)
-        with cols[0]:
-            st.metric("Calories", f"{nutrition.get('calories', 'N/A')} kcal")
-        with cols[1]:
-            st.metric("Protein", f"{nutrition.get('protein', 'N/A')} g")
-        with cols[2]:
-            st.metric("Carbs", f"{nutrition.get('carbs', 'N/A')} g")
-        with cols[3]:
-            st.metric("Fat", f"{nutrition.get('fat', 'N/A')} g")
-    
-    # Save to favorites button
-    if st.button("❤️ Save to Favorites"):
-        save_recipe(recipe_data)
-
-def display_favorites():
-    if st.session_state.favorites:
-        st.subheader("❤️ Saved Recipes")
-        for recipe in st.session_state.favorites:
-            with st.expander(f"{recipe['recipe']['name']} - Saved on {recipe['saved_date']}"):
-                display_recipe(recipe)
-    else:
-        st.info("No saved recipes yet. Generate and save some recipes!")
+# Store favorites in memory (in a real app, you'd use a database)
+favorites = []
 
 @app.route('/generate-recipe', methods=['POST'])
 def generate_recipe():
@@ -108,9 +48,39 @@ def generate_recipe():
                 {"role": "user", "content": f"I have the following ingredients:\n{ingredients}"}
             ]
         )
-        return jsonify(response.choices[0].message.content)
+        
+        # Parse the response to ensure it's valid JSON
+        content = response.choices[0].message.content
+        try:
+            # Try to parse the entire content as JSON
+            recipe_data = json.loads(content)
+        except json.JSONDecodeError:
+            # If that fails, try to extract JSON from markdown code blocks
+            import re
+            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_match:
+                recipe_data = json.loads(json_match.group(1).strip())
+            else:
+                raise ValueError("Could not parse recipe data")
+        
+        return jsonify(recipe_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/favorites', methods=['GET'])
+def get_favorites():
+    return jsonify(favorites)
+
+@app.route('/favorites', methods=['POST'])
+def add_favorite():
+    recipe = request.json
+    recipe['saved_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Check if recipe already exists
+    if not any(f['recipe']['name'] == recipe['recipe']['name'] for f in favorites):
+        favorites.append(recipe)
+        return jsonify({"message": "Recipe saved to favorites!", "success": True})
+    return jsonify({"message": "Recipe already in favorites!", "success": False})
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 
