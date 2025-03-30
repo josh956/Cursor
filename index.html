@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Recipe Generator</h1>
+        <p>Enter a list of ingredients to generate a recipe.</p>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="generate">Generate Recipe</button>
+            <button class="tab-btn" data-tab="favorites">Favorites</button>
+        </div>
+
+        <!-- Generate Recipe Tab -->
+        <div class="tab-content active" id="generate">
+            <div class="input-section">
+                <textarea id="ingredients" placeholder="Enter ingredients (comma-separated)&#10;Example: Cucumber, Tomato, Olives"></textarea>
+                <button id="generateBtn" class="primary-btn">Generate Recipe</button>
+            </div>
+            <div id="recipe-display"></div>
+        </div>
+
+        <!-- Favorites Tab -->
+        <div class="tab-content" id="favorites">
+            <div id="favorites-list">
+                <p class="no-favorites">No saved recipes yet. Generate and save some recipes!</p>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
